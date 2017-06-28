@@ -58,9 +58,23 @@ module.exports = {
               // On completion, read the output back into memory and save it for later
               .done(function() {
                 let file = fs.readFileSync(temp + '/index.html', 'utf8')
-                let search = /<body[^>]*>((.|[\n\r])*)<\/body>/gmi;
-                let content = search.exec(file);
-                swaggers[definition[1]] = content[1];
+                try {
+                  let search = /<body[^>]*>((.|[\n\r])*)<\/body>/gmi;
+                  let content = search.exec(file);
+                  swaggers[definition[1]] = content[1];
+                } catch(err)
+                {
+                  // The RegExp causes a 'RangeError: Maximum call stack size exceeded'
+                  // while parsing huge spec-files (> 1.7MB). String-functions will do the trick.
+                  var bodyStart = file.indexOf(
+                    ">", // body-open-tag end bracket
+                    file.indexOf("<body") // start at body-open-tag-position
+                  ) + 1;
+                  var bodyEnd = file.indexOf("</body>", bodyStart);
+                  var bodyInnerText = file.substring(bodyStart, bodyEnd);
+                    
+                  swaggers[definition[1]] = bodyInnerText;
+                }
                 var exec = require('child_process').exec;
                 exec('rm -r ' + temp);
                 resolve(page);
